@@ -7,7 +7,7 @@ no Docker, no Grafana, no Prometheus, no SaaS subscriptions required.
 Just drop a `.py` file on any machine, edit a JSON config, and you have a
 live monitoring dashboard in under a minute.
 
-![Jedi DevOps Uptime Monitor Plus — terminal dashboard screenshot](screenshot.png)
+![Jedi DevOps Uptime Monitor Plus — terminal dashboard screenshot](Screenshot1.png)
 
 > 📸 *To add the screenshot: save the image above as `screenshot.png` in the repo root.*
 
