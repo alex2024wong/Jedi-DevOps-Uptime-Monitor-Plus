@@ -89,7 +89,7 @@ All settings live in `monitor_cld_config.json` (auto-created on first run).
         "url": "https://mysite.com/",
         "description": "Main site",
         "interval": 60,
-        "text_present": ["Welcome", "Copyright 2025"],
+        "text_present": ["Welcome", "Copyright 2026"],
         "text_absent":  ["Fatal error", "503"]
     },
     {
@@ -219,7 +219,7 @@ when you want an answer in 60 seconds, not after 60 minutes of stack setup.
 
 MIT License with Attribution Requirement.
 
-Copyright © 2025 [Volodymyr Frytskyy (WhitemanV)](https://www.vladonai.com/about-resume)
+Copyright © 2026 [Volodymyr Frytskyy (WhitemanV)](https://www.vladonai.com/about-resume)
 
 Free to use, modify, and distribute — attribution to the original author required.
 See the [full license text](uptime_monitor_for_devops.py) in the script header.
