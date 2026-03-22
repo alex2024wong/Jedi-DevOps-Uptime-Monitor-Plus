@@ -2415,7 +2415,7 @@ class JediTerminalControl:
                 fd = sys.stdin.fileno()
                 oldSettings = termios.tcgetattr(fd)
                 try:
-                    tty.setraw(fd)
+                    tty.setcbreak(fd);
                     while self.isRunning:
                         import select as _select
                         rlist, _, _ = _select.select([sys.stdin], [], [], 0.1)
