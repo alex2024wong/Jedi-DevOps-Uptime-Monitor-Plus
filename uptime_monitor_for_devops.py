@@ -534,6 +534,8 @@ class JediTerminalControl:
 
         # Keyboard shortcut state
         self.inOptionsScreen      = False  # Pauses dashboard while options menu is open
+        self._termFd              = None   # stdin fd while in cbreak mode (Linux only)
+        self._termOldSettings     = None   # saved termios settings to restore on demand
 
         self._logMessage("INFO", "Jedi DevOps Uptime Monitor Plus online. Servers, we watch. Sleep, we don't.")
     
@@ -2425,9 +2427,10 @@ class JediTerminalControl:
             else:
                 import tty, termios
                 fd = sys.stdin.fileno()
-                oldSettings = termios.tcgetattr(fd)
+                self._termFd          = fd
+                self._termOldSettings = termios.tcgetattr(fd)
                 try:
-                    tty.setcbreak(fd);
+                    tty.setcbreak(fd)
                     while self.isRunning:
                         import select as _select
                         rlist, _, _ = _select.select([sys.stdin], [], [], 0.1)
@@ -2435,7 +2438,9 @@ class JediTerminalControl:
                             ch = sys.stdin.read(1)
                             self._handleKeypress(ch)
                 finally:
-                    termios.tcsetattr(fd, termios.TCSADRAIN, oldSettings)
+                    termios.tcsetattr(fd, termios.TCSADRAIN, self._termOldSettings)
+                    self._termFd          = None
+                    self._termOldSettings = None
         except Exception as e:
             self._logMessage("WARN", f"Keyboard listener error: {e}")
 
@@ -2449,8 +2454,16 @@ class JediTerminalControl:
             if not self.inOptionsScreen:
                 self.inOptionsScreen = True
                 try:
+                    # Restore normal terminal mode so input() shows typed text
+                    if self._termFd is not None and self._termOldSettings is not None:
+                        import termios
+                        termios.tcsetattr(self._termFd, termios.TCSADRAIN, self._termOldSettings)
                     self._showOptionsScreen()
                 finally:
+                    # Re-apply cbreak so dashboard hotkeys work again
+                    if self._termFd is not None:
+                        import tty
+                        tty.setcbreak(self._termFd)
                     self.inOptionsScreen = False
                     self._firstRender = True  # Force full redraw after options
         elif ch in ('q', '\x1b'):  # Q or Escape
