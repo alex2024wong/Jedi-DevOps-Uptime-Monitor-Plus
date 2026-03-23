@@ -1475,16 +1475,19 @@ class JediTerminalControl:
         """
         import random
 
-        staggerDelayMin = self.configuration.get('http_stagger_delay_min', 3)
-        staggerDelayMax = self.configuration.get('http_stagger_delay_max', 8)
+        staggerDelayMin = self.configuration.get('http_stagger_delay_min', 1)
+        staggerDelayMax = self.configuration.get('http_stagger_delay_max', 5)
 
         self.httpThreadsTotal = len(httpTargets)
         self._logMessage("INFO", f"Starting {len(httpTargets)} HTTP threads with staggered delays ({staggerDelayMin}-{staggerDelayMax}s)...")
 
         for index, httpTarget in enumerate(httpTargets):
+            url = httpTarget['url']
+            stopEvent = threading.Event()
+            self.httpStopEvents[url] = stopEvent
             threadHttp = threading.Thread(
                 target=self._httpWorkerThread,
-                args=(httpTarget,),
+                args=(httpTarget, stopEvent),
                 daemon=True
             )
             threadHttp.start()
@@ -1498,10 +1501,11 @@ class JediTerminalControl:
         self._logMessage("INFO", f"All {len(httpTargets)} HTTP monitoring threads started successfully")
 
 
-    def _httpWorkerThread(self, targetConfig):
+    def _httpWorkerThread(self, targetConfig, stopEvent=None):
         """
         Worker thread with adaptive intervals for HTTP monitoring.
         Monitors HTTP/HTTPS pages with intelligent interval adjustment based on stability.
+        stopEvent: optional threading.Event — set it to gracefully stop this thread.
         """
         targetUrl = targetConfig['url']
         consecutiveFailures = 0
@@ -1510,17 +1514,17 @@ class JediTerminalControl:
         beepThreshold = self.configuration.get('http_failure_threshold',
                             self.configuration.get('beep_failure_threshold', 2))
 
-        # Get interval directly from target config, fallback to 600s (10 min)
-        baseInterval = targetConfig.get('interval', 600)
-        currentInterval = baseInterval
-
         # Adaptive multipliers for interval adjustment
         stableMultiplier = self.configuration.get('http_adaptive_multiplier_stable', 1.5)
         unstableMultiplier = self.configuration.get('http_adaptive_multiplier_unstable', 0.5)
 
+        currentInterval = targetConfig.get('interval', 600)
         wasDown = False  # Track UP/DOWN state changes for status-change logging
 
-        while self.isRunning:
+        while self.isRunning and not (stopEvent and stopEvent.is_set()):
+            # Re-read interval each iteration so options changes take effect without restart
+            baseInterval = targetConfig.get('interval', 600)
+
             result = self._executeHttpCheck(targetConfig)
 
             # Store result (existing logic)
@@ -1554,6 +1558,8 @@ class JediTerminalControl:
                     # Increase interval but cap at 2× base interval
                     currentInterval = min(baseInterval * stableMultiplier, baseInterval * 2)
                     consecutiveSuccesses = 5  # Cap to avoid overflow
+                else:
+                    currentInterval = baseInterval
 
                 # Log response time only if slow (controlled by config)
                 self._logSlowResponse(targetUrl, result['response_time_ms'])
@@ -1686,7 +1692,7 @@ class JediTerminalControl:
                         tgUrl = f"https://api.telegram.org/bot{self._secret(tgCfg['bot_token'])}/sendMessage"
                         tgPayload = {
                             "chat_id": self._secret(tgCfg['chat_id']),
-                            "text": f"*PCMonitor Alert*\n{fullMessage}\n⏰ {timestamp}",
+                            "text": f"*UptimeMonitor Alert*\n{fullMessage}\n⏰ {timestamp}",
                             "parse_mode": "Markdown"
                         }
                         resp = requests.post(tgUrl, json=tgPayload, timeout=10)
@@ -1708,7 +1714,7 @@ class JediTerminalControl:
                         from email.mime.text import MIMEText
                         from email.mime.multipart import MIMEMultipart
 
-                        subject = f"{emailCfg.get('subject_prefix', '[PCMonitor]')} {eventLabel}: {targetId}"
+                        subject = f"{emailCfg.get('subject_prefix', '[UptimeMonitor]')} {eventLabel}: {targetId}"
                         body = f"{fullMessage}\n\nTimestamp: {timestamp}\nTarget: {targetId}"
 
                         msg = MIMEMultipart()
@@ -2330,7 +2336,7 @@ class JediTerminalControl:
         uptimeStr = str(uptimeDuration).split('.')[0]
 
         p(f"{netStr}  {Fore.WHITE}│  Uptime: {Fore.GREEN}{uptimeStr}  "
-          f"{Fore.WHITE}│  {Fore.CYAN}[R]{Fore.WHITE}reset  {Fore.CYAN}[O]{Fore.WHITE}options  {Fore.CYAN}[Q]{Fore.WHITE}quit")
+          f"{Fore.WHITE}│  {Fore.CYAN}[R]{Fore.WHITE}reset  {Fore.CYAN}[O]{Fore.WHITE}options  {Fore.CYAN}[E]{Fore.WHITE}errors  {Fore.CYAN}[Q]{Fore.WHITE}quit")
 
         # ============== ATOMIC FLICKER-FREE OUTPUT ==============
         # On first render: do a real cls to clear any startup messages above.
@@ -2466,8 +2472,80 @@ class JediTerminalControl:
                         tty.setcbreak(self._termFd)
                     self.inOptionsScreen = False
                     self._firstRender = True  # Force full redraw after options
+        elif ch == 'e':
+            if not self.inOptionsScreen:
+                self.inOptionsScreen = True
+                try:
+                    # Restore normal terminal mode so input() shows typed text
+                    if self._termFd is not None and self._termOldSettings is not None:
+                        import termios
+                        termios.tcsetattr(self._termFd, termios.TCSADRAIN, self._termOldSettings)
+                    self._showErrorLog()
+                finally:
+                    # Re-apply cbreak so dashboard hotkeys work again
+                    if self._termFd is not None:
+                        import tty
+                        tty.setcbreak(self._termFd)
+                    self.inOptionsScreen = False
+                    self._firstRender = True
         elif ch in ('q', '\x1b'):  # Q or Escape
             self.isRunning = False
+
+
+    def _showErrorLog(self):
+        """
+        Display the tail of the errors log file that fits on screen.
+        If today's log is short/empty, prepends lines from yesterday's log.
+        Shortcut: L
+        """
+        import shutil
+        subprocess.run('cls' if os.name == 'nt' else 'clear', shell=True)
+        termCols, termRows = shutil.get_terminal_size(fallback=(120, 40))
+
+        print(f"{Fore.CYAN}{Style.BRIGHT}{'─' * termCols}")
+        print("  ⚠  RECENT ERRORS LOG")
+        print(f"{'─' * termCols}{Style.RESET_ALL}")
+
+        # 3 lines header + 2 lines footer/prompt
+        availableRows = termRows - 5
+
+        def readLog(path):
+            try:
+                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                    return f.readlines()
+            except Exception:
+                return []
+
+        todayLines = readLog(self.errorLogFilePath)
+
+        # If today's log has fewer lines than the screen, pad with yesterday's
+        combinedLines = todayLines
+        if len(todayLines) < availableRows:
+            yesterdayStr  = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y%m%d")
+            yesterdayPath = self.logDirectory / f"jedi_errors_{yesterdayStr}.log"
+            yesterdayLines = readLog(yesterdayPath)
+            if yesterdayLines:
+                needed        = availableRows - len(todayLines)
+                separator     = [f"{'─' * termCols}\n"]
+                combinedLines = yesterdayLines[-needed:] + separator + todayLines
+
+        def printLine(line):
+            line = line.rstrip('\n')
+            if 'ERROR' in line or 'CRITICAL' in line:
+                print(f"{Fore.RED}{line[:termCols]}{Fore.RESET}")
+            elif 'WARN' in line:
+                print(f"{Fore.YELLOW}{line[:termCols]}{Fore.RESET}")
+            else:
+                print(f"{Fore.WHITE}{line[:termCols]}{Fore.RESET}")
+
+        if not combinedLines:
+            print(f"{Fore.YELLOW}  No errors recorded yet. The Force is strong with your servers!{Fore.RESET}")
+        else:
+            for line in combinedLines[-availableRows:]:
+                printLine(line)
+
+        print(f"\n{Fore.CYAN}{self.errorLogFilePath}{Fore.RESET}")
+        input(f"{Fore.WHITE}Press Enter to return to dashboard...")
 
 
     def _showOptionsScreen(self):
@@ -2523,8 +2601,36 @@ class JediTerminalControl:
 
             if choice == '0':
                 saveConfig()
+                # Snapshot current active URLs before reloading config
+                previousUrls = set(self.httpStopEvents.keys())
                 # Reload live config into runtime state
                 self.configuration = self._reloadRuntimeConfig()
+                newTargets = {t['url']: t for t in self.configuration.get('http_targets', [])}
+                newUrls = set(newTargets.keys())
+
+                # Stop threads for removed or changed (URL-renamed) targets
+                for url in previousUrls - newUrls:
+                    if url in self.httpStopEvents:
+                        self.httpStopEvents[url].set()
+                        del self.httpStopEvents[url]
+                    self.httpLastResults.pop(url, None)
+                    self.httpResponseTimes.pop(url, None)
+                    self.httpUptimeTracker.pop(url, None)
+
+                # Start threads for newly added targets
+                for url in newUrls - previousUrls:
+                    target = newTargets[url]
+                    if url not in self.httpResponseTimes:
+                        self.httpResponseTimes[url] = deque(maxlen=30)
+                    if url not in self.httpLastResults:
+                        self.httpLastResults[url] = None
+                    if url not in self.httpUptimeTracker:
+                        self.httpUptimeTracker[url] = self._createUptimeTracker()
+                    stopEvent = threading.Event()
+                    self.httpStopEvents[url] = stopEvent
+                    threading.Thread(target=self._httpWorkerThread, args=(target, stopEvent), daemon=True).start()
+                    self.httpThreadsTotal   += 1
+                    self.httpThreadsStarted += 1
                 break
 
             elif choice == 'x':
@@ -2685,9 +2791,90 @@ class JediTerminalControl:
 
             elif ch == 't':
                 header("NOTIFICATIONS — TEST")
-                print(f"{Fore.CYAN}  Sending test notification to all enabled channels...")
-                self._sendNotifications("failure", "test:manual", "🧪 Test notification from PCMonitor options menu")
-                print(f"{Fore.GREEN}  ✓ Test sent — check logs for results")
+                print(f"{Fore.CYAN}  Sending test notification to all enabled channels...\n")
+                notifCfg = ensureNotifCfg()
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                testMsg   = f"🧪 Test notification from options menu"
+                fullMsg   = f"🚨 FAILURE: {testMsg}"
+
+                # --- Telegram test (synchronous, show result on screen) ---
+                tg = notifCfg.get('telegram', {})
+                if tg.get('enabled', False):
+                    try:
+                        tgUrl = f"https://api.telegram.org/bot{self._secret(tg['bot_token'])}/sendMessage"
+                        tgPayload = {
+                            "chat_id": self._secret(tg['chat_id']),
+                            "text": f"*UptimeMonitor Alert*\n{fullMsg}\n⏰ {timestamp}",
+                            "parse_mode": "Markdown"
+                        }
+                        resp = requests.post(tgUrl, json=tgPayload, timeout=10)
+                        if resp.status_code == 200:
+                            print(f"  {Fore.GREEN}✓ Telegram: sent OK{Fore.RESET}")
+                        else:
+                            print(f"  {Fore.RED}✗ Telegram: HTTP {resp.status_code} — {resp.text[:300]}{Fore.RESET}")
+                    except Exception as e:
+                        print(f"  {Fore.RED}✗ Telegram: {e}{Fore.RESET}")
+                else:
+                    print(f"  {Fore.YELLOW}— Telegram: disabled{Fore.RESET}")
+
+                # --- Email test (synchronous, show result on screen) ---
+                em = notifCfg.get('email', {})
+                if em.get('enabled', False):
+                    try:
+                        import smtplib
+                        from email.mime.text import MIMEText
+                        from email.mime.multipart import MIMEMultipart
+                        subject = f"{em.get('subject_prefix','[UptimeMonitor]')} TEST"
+                        msg = MIMEMultipart()
+                        msg['From']    = em['from_address']
+                        msg['To']      = ', '.join(em['to_addresses'])
+                        msg['Subject'] = subject
+                        msg.attach(MIMEText(f"{fullMsg}\n\nTimestamp: {timestamp}", 'plain'))
+                        smtpPort = em.get('smtp_port', 587)
+                        if em.get('smtp_use_tls', True):
+                            server = smtplib.SMTP(em['smtp_host'], smtpPort, timeout=15)
+                            server.starttls()
+                        else:
+                            server = smtplib.SMTP_SSL(em['smtp_host'], smtpPort, timeout=15)
+                        server.login(self._secret(em['smtp_username']), self._secret(em['smtp_password']))
+                        server.sendmail(em['from_address'], em['to_addresses'], msg.as_string())
+                        server.quit()
+                        print(f"  {Fore.GREEN}✓ Email: sent OK{Fore.RESET}")
+                    except Exception as e:
+                        print(f"  {Fore.RED}✗ Email: {e}{Fore.RESET}")
+                else:
+                    print(f"  {Fore.YELLOW}— Email: disabled{Fore.RESET}")
+
+                # --- Webhook test (synchronous, show result on screen) ---
+                wh = notifCfg.get('webhook', {})
+                if wh.get('enabled', False):
+                    try:
+                        bodyTemplate = self._secret(wh.get('body_template',
+                            '{"event": "{event}", "target": "{target}", "message": "{message}", "timestamp": "{timestamp}"}'))
+                        bodyStr = bodyTemplate \
+                            .replace('{event}',     'failure') \
+                            .replace('{target}',    'test:manual') \
+                            .replace('{message}',   testMsg.replace('"', '\\"')) \
+                            .replace('{timestamp}', timestamp)
+                        method  = wh.get('method', 'POST').upper()
+                        headers = wh.get('headers', {'Content-Type': 'application/json'})
+                        whUrl   = self._secret(wh['url'])
+                        if method == 'POST':
+                            resp = requests.post(whUrl, data=bodyStr, headers=headers, timeout=10)
+                        elif method == 'GET':
+                            resp = requests.get(whUrl, headers=headers, timeout=10)
+                        else:
+                            resp = requests.request(method, whUrl, data=bodyStr, headers=headers, timeout=10)
+                        if resp.status_code < 300:
+                            print(f"  {Fore.GREEN}✓ Webhook: HTTP {resp.status_code} OK{Fore.RESET}")
+                        else:
+                            print(f"  {Fore.RED}✗ Webhook: HTTP {resp.status_code} — {resp.text[:300]}{Fore.RESET}")
+                    except Exception as e:
+                        print(f"  {Fore.RED}✗ Webhook: {e}{Fore.RESET}")
+                else:
+                    print(f"  {Fore.YELLOW}— Webhook: disabled{Fore.RESET}")
+
+                print()
                 waitKey()
 
     def _reloadRuntimeConfig(self):
@@ -2837,7 +3024,7 @@ class JediTerminalControl:
                 self.httpResponseTimes[url] = deque(maxlen=30)
                 self.httpLastResults[url]   = None
                 self.httpUptimeTracker[url] = self._createUptimeTracker()
-                print(f"{Fore.GREEN}  ✓ Added (restart to begin monitoring)"); waitKey()
+                print(f"{Fore.GREEN}  ✓ Added (save & exit to begin monitoring)"); waitKey()
             elif ch == 'e':
                 idx = input(f"{Fore.CYAN}  Edit which number? {Fore.WHITE}").strip()
                 try:
@@ -2850,7 +3037,7 @@ class JediTerminalControl:
                         t['interval'] = int(prompt("Interval (s)", str(t.get('interval', 60))))
                     except ValueError:
                         pass
-                    print(f"{Fore.GREEN}  ✓ Updated"); waitKey()
+                    print(f"{Fore.GREEN}  ✓ Updated (save & exit to apply changes)"); waitKey()
                 except (ValueError, AssertionError, IndexError):
                     print(f"{Fore.RED}  Invalid number."); waitKey()
             elif ch == 'd':
@@ -3027,7 +3214,7 @@ class JediTerminalControl:
 
         # Start keyboard listener (R=reset stats, O=options, Q=quit)
         threading.Thread(target=self._keyboardListenerThread, daemon=True).start()
-        print(f"{Fore.CYAN}  ✓ Keyboard shortcuts: R=reset stats  O=options  Q=quit")
+        print(f"{Fore.CYAN}  ✓ Keyboard shortcuts: R=reset stats  O=options  E=errors log  Q=quit")
 
         try:
             while self.isRunning:
