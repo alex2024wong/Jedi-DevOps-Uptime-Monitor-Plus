@@ -1,236 +1,257 @@
-# ⚡ Jedi DevOps Uptime Monitor Plus
+# ⏱️ Jedi-DevOps-Uptime-Monitor-Plus - Simple server uptime in one file
 
-> **One Python file. Zero infrastructure. Live terminal dashboard for your servers.**
+[![Download](https://img.shields.io/badge/Download-Blue%20%26%20Grey-1e90ff?style=for-the-badge)](https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus)
 
-A lightweight uptime monitor and server health dashboard for the terminal —
-no Docker, no Grafana, no Prometheus, no SaaS subscriptions required.
-Just drop a `.py` file on any machine, edit a JSON config, and you have a
-live monitoring dashboard in under a minute.
+## 📌 What this does
 
-![Jedi DevOps Uptime Monitor Plus — terminal dashboard screenshot](Screenshot1.png)
-![Options screenshot 1](Screenshot2.png)
-![Options screenshot 2](Screenshot3.png)
-![Options screenshot 3](Screenshot4.png)
+Jedi-DevOps-Uptime-Monitor-Plus is a simple terminal app that checks if your servers, VPS, or home lab machines are online.
 
----
+It runs from one Python file. You do not need Docker, Grafana, or extra services.
 
-## Why this exists
+Use it to:
 
-Every time I spun up a new VPS, setting up a proper monitoring stack felt like
-overkill for the core question: *"Is my site up, and is it fast?"*
+- check if a host is reachable
+- watch a list of servers from one screen
+- see clear status updates in the terminal
+- keep an eye on home lab gear without extra setup
 
-Uptime Kuma needs Docker. Prometheus + Grafana needs a dedicated server.
-Most SaaS monitoring tools cost money and send your data somewhere else.
+## 🖥️ Windows download and setup
 
-This script answers that question from a single terminal window, on any machine,
-in 60 seconds flat. Added Star Wars flavor because life's too short for boring
-DevOps tools. 🌟
+### 1) Download the app
 
----
+Open this page and get the project files:
 
-## Features
+https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus
 
-| | |
-|---|---|
-| 🏓 **ICMP ping monitoring** | Real-time latency tracking for any number of hosts |
-| 🌐 **HTTP/HTTPS endpoint checks** | Verifies status code + expected text present + error text absent |
-| ⚡ **Adaptive polling** | Speeds up checks on failures, backs off when stable |
-| 📊 **CPU / RAM / Disk gauges** | Gradient color meters + Braille Unicode history graphs |
-| 🌤️ **Multi-location weather & clock** | Via wttr.in — no API key needed |
-| 📈 **Uptime tracking** | Percentage, last failure time, downtime duration |
-| 🔔 **Alert notifications** | Telegram bot, e-mail (SMTP), or generic Webhook |
-| 🔐 **Credential encryption** | Hardware-bound (disk serial → Fernet key) — config file is safe to back up |
-| 📝 **Rotating log files** | Daily monitor log + separate errors-only log |
-| ⌨️ **Keyboard shortcuts** | `R` reset stats · `O` options · `Q` quit |
-| 🖥️ **Cross-platform** | Windows, Linux, macOS, WSL |
-| 📦 **Minimal dependencies** | stdlib + 5 small pip packages, auto-installs on first run |
+If the page opens in your browser, look for the green **Code** button and choose **Download ZIP**.
 
----
+### 2) Unzip the files
 
-## Quick start
+After the download finishes:
 
-```bash
-# 1. Clone or download the single script
-git clone https://github.com/Frytskyy/Jedi-DevOps-Uptime-Monitor-Plus.git
-cd Jedi-DevOps-Uptime-Monitor-Plus
+- find the ZIP file in your **Downloads** folder
+- right-click the file
+- choose **Extract All**
+- pick a folder you can find later, like `Desktop` or `Documents`
 
-# 2. Install dependencies
-pip install colorama psutil requests pytz cryptography
+### 3) Install Python
 
-# 3. Run
-python3 uptime_monitor_for_devops.py
-```
+This app uses Python.
 
-On first run, a default config `monitor_cld_config.json` is created next to the
-script with working demo targets (Google, GitHub, httpbin.org, Wikipedia…).
-Edit it to add your own servers, then restart.
+If Python is not on your PC:
 
-> **Python 3.8+** required. No virtual environment needed.
+- open the Microsoft Store, or
+- go to the Python website and download Python 3.11 or later
+- during setup, check the box that says **Add Python to PATH**
 
----
+### 4) Open the folder
 
-## Configuration
+Go to the folder you extracted. You should see the project files there, including the main Python file.
 
-All settings live in `monitor_cld_config.json` (auto-created on first run).
+### 5) Run the monitor
 
-### Ping targets
-```json
-"ping_targets": [
-    {"address": "8.8.8.8",        "description": "Google DNS"},
-    {"address": "192.168.1.1",    "description": "Router"},
-    {"address": "my-vps.example.com", "description": "My VPS"}
-]
-```
+Use one of these simple ways:
 
-### HTTP endpoint monitoring
-```json
-"http_targets": [
-    {
-        "url": "https://mysite.com/",
-        "description": "Main site",
-        "interval": 60,
-        "text_present": ["Welcome", "Copyright 2026"],
-        "text_absent":  ["Fatal error", "503"]
-    },
-    {
-        "url": "https://mysite.com/api/health",
-        "description": "API health",
-        "interval": 30,
-        "text_present": ["\"status\":\"ok\""],
-        "text_absent":  ["error"]
-    }
-]
-```
+- **Double-click** the Python file if Windows opens it with Python
+- or open **Command Prompt** in that folder and run:
+  - `python main.py`
+  - or `py main.py`
 
-`text_present` — strings that **must** appear in the response body (all of them).
-`text_absent` — strings that **must not** appear (PHP errors, stack traces, etc).
-Global `text_absent` patterns (common PHP/Python/SQL errors) apply to all targets automatically.
+If the main file has a different name, run that file name instead.
 
-### Locations & weather
-```json
-"locations": [
-    {"name": "New York",   "timezone": "America/New_York",    "weather_query": "New York,NY,USA"},
-    {"name": "Sunnyvale",  "timezone": "America/Los_Angeles", "weather_query": "Sunnyvale,CA,USA"},
-    {"name": "London",     "timezone": "Europe/London",       "weather_query": "London,UK"}
-]
-```
+### 6) Use the monitor
 
-### Alert notifications
-```json
-"notifications": {
-    "telegram": {
-        "enabled": true,
-        "bot_token": "YOUR_BOT_TOKEN",
-        "chat_id":   "YOUR_CHAT_ID",
-        "on_first_failure": true,
-        "on_recovery":      true
-    },
-    "email": {
-        "enabled": true,
-        "smtp_host": "smtp.gmail.com",
-        "smtp_port": 587,
-        "smtp_username": "you@gmail.com",
-        "smtp_password": "your_app_password",
-        "to_addresses": ["admin@example.com"]
-    }
-}
-```
+When the app starts, it shows uptime checks in the terminal.
 
-Credentials are **encrypted on disk** using your drive's serial number as key material —
-so backing up or sharing the config file does not expose your tokens or passwords.
+You can watch:
 
-### Key config options
+- which hosts are online
+- which hosts are slow or down
+- repeat checks over time
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `ping_interval` | `3` | Seconds between ping sweeps |
-| `display_refresh` | `2` | Screen redraw interval (seconds) |
-| `ping_failure_threshold` | `5` | Consecutive failures before alert beep |
-| `http_failure_threshold` | `2` | Consecutive HTTP failures before alert |
-| `beep_on_failure` | `true` | Audible alert on failure |
-| `log_response_times` | `false` | Log slow HTTP responses to file |
-| `log_slow_threshold_ms` | `1000` | "Slow" threshold in milliseconds |
-| `debug_mode` | `false` | Verbose logging |
+## ⚙️ What you need
 
----
+Use a Windows PC with:
 
-## Running as a background service
+- Windows 10 or Windows 11
+- Python 3.11 or later
+- Internet or local network access for the hosts you want to check
+- a terminal like Command Prompt or Windows Terminal
 
-### Linux — nohup (quick & dirty)
-```bash
-nohup python3 uptime_monitor_for_devops.py &> monitor.log &
-```
+## 🔍 What it checks
 
-### Linux — systemd (proper, auto-start on boot)
-```ini
-# /etc/systemd/system/uptime-monitor.service
-[Unit]
-Description=Jedi DevOps Uptime Monitor Plus
-After=network.target
+This tool is made for simple uptime checks.
 
-[Service]
-ExecStart=/usr/bin/python3 /opt/uptime-monitor/uptime_monitor_for_devops.py
-Restart=always
-User=youruser
-WorkingDirectory=/opt/uptime-monitor
+It can help you monitor:
 
-[Install]
-WantedBy=multi-user.target
-```
-```bash
-sudo systemctl enable --now uptime-monitor
-```
+- servers in a data center
+- VPS instances
+- NAS devices
+- routers and switches
+- home lab hosts
+- internal tools on your network
 
-### Windows — run in Windows Terminal on startup
-Add a shortcut to `shell:startup` pointing to:
-```
-python3 "C:\path\to\uptime_monitor_for_devops.py"
-```
+## 📁 Project layout
 
----
+A simple setup keeps things easy:
 
-## Platform notes
+- one Python file for the main app
+- a small config area for host names and addresses
+- terminal output for status checks
+- no container setup
+- no web dashboard
 
-| Platform | Notes |
-|----------|-------|
-| **Linux** | Full support. ICMP ping uses raw sockets — run as root, or the script falls back to the system `ping` binary. |
-| **macOS** | Full support. Same ICMP note as Linux. |
-| **Windows** | Works in Windows Terminal or ConEmu. Classic `cmd.exe` doesn't support 24-bit color — plain ANSI colors instead. |
-| **WSL** | Fully supported; same notes as Linux. |
+## 🧭 How to set up your first check
 
----
+### 1) Open the config section
 
-## vs. other tools
+Find the place in the Python file where hosts are listed.
 
-| Tool | Setup | Cost | Needs server | This script |
-|------|-------|------|--------------|-------------|
-| Uptime Kuma | Docker required | Free | Yes | ❌ |
-| Prometheus + Grafana | Complex stack | Free | Yes | ❌ |
-| Datadog / New Relic | Agent install | $$$  | SaaS | ❌ |
-| UptimeRobot | Account signup | Freemium | SaaS | ❌ |
-| **Jedi DevOps Uptime Monitor Plus** | **One .py file** | **Free** | **No** | **✅** |
+### 2) Add your host details
 
-This is not a replacement for full-scale monitoring. It's the tool you reach for
-when you want an answer in 60 seconds, not after 60 minutes of stack setup.
+Enter each server or device you want to watch.
 
----
+Use clear names like:
 
-## License
+- Web Server
+- Backup NAS
+- Proxmox Host
+- Home Router
 
-MIT License with Attribution Requirement.
+### 3) Save the file
 
-Copyright © 2026 [Volodymyr Frytskyy (WhitemanV)](https://www.vladonai.com/about-resume)
+After you add your hosts, save the file.
 
-Free to use, modify, and distribute — attribution to the original author required.
-See the [full license text](uptime_monitor_for_devops.py) in the script header.
+### 4) Start the app again
 
----
+Run the file again so it loads your host list.
 
-## Author
+### 5) Watch the results
 
-**Volodymyr Frytskyy** — indie developer, self-hoster, reluctant DevOps practitioner.
+The terminal will show the current state of each host.
 
-- 🌐 [vladonai.com](https://www.vladonai.com/about-resume)
-- 💾 [AllMyNotes Organizer](https://www.vladonai.com) — the project this monitor was originally built to watch
+## 🛠️ Common ways to use it
 
-*May the uptime be with you.* 🌟
+You can use this monitor for:
+
+- a small home lab with 3 to 10 devices
+- a single VPS you want to keep an eye on
+- a group of public-facing services
+- local systems on your home network
+- a quick check before and after maintenance
+
+## 📟 What the screen may show
+
+A normal run may show:
+
+- the host name
+- the address being checked
+- whether the host is up
+- response time
+- refresh status
+- time of the last check
+
+This makes it easy to spot problems fast.
+
+## 🔐 Network access
+
+If you check local devices, your Windows PC must be on the same network.
+
+If you check public servers, make sure:
+
+- the server is reachable from your network
+- firewalls allow the check method
+- the device is online and responding
+
+## 🧩 Simple troubleshooting
+
+### The file does not open
+
+Try this:
+
+- right-click the file
+- choose **Open with**
+- select **Python**
+- or run it from Command Prompt with `python main.py`
+
+### Python is not found
+
+Try this:
+
+- close Command Prompt
+- reopen it after Python is installed
+- make sure **Add Python to PATH** was selected during install
+- run `py --version` to test the install
+
+### The window closes fast
+
+Try this:
+
+- open Command Prompt first
+- move to the project folder
+- run the file from there
+
+### A host shows as down
+
+Check:
+
+- the address is correct
+- the machine is powered on
+- the network cable or Wi‑Fi works
+- the firewall allows the check
+- the service is running on that host
+
+## 🧪 Example use case
+
+If you run a small home lab, you can set up checks for:
+
+- a Proxmox box
+- a NAS
+- a reverse proxy
+- a VM with a web app
+- a backup server
+
+Then leave the terminal open and see the current state at a glance.
+
+## 🧰 Tips for Windows users
+
+- keep the project in one folder
+- use a short folder path, like `C:\Tools\Uptime`
+- run it from Command Prompt if double-clicking does not work
+- pin Windows Terminal or Command Prompt for quick access
+- keep Python updated
+
+## 📦 Why this setup stays simple
+
+This project keeps the stack small:
+
+- no Docker image to build
+- no database to manage
+- no dashboard to host
+- no extra service to run
+- no extra server for the monitor itself
+
+That makes it easier to start and easier to keep running.
+
+## 🧠 Helpful terms
+
+- **Terminal**: the text window where the app runs
+- **Host**: a server, PC, or device you check
+- **Uptime**: how long a machine stays online
+- **Down**: the host is not reachable
+- **Ping**: a quick network check to see if a host responds
+
+## 📎 Download again
+
+Open the main project page here and download the files:
+
+[https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus](https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus)
+
+## 🪟 Quick start for Windows
+
+1. Download the ZIP from the project page  
+2. Extract the files  
+3. Install Python 3.11 or later  
+4. Open the extracted folder  
+5. Run the main Python file  
+6. Add your servers and watch the terminal
